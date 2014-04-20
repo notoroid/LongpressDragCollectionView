@@ -16,9 +16,12 @@
     __weak IBOutlet UICollectionView *_collectionView;
     UIView *_currentView;
     CGPoint _panTranslationInCollectionView;
-    __weak IBOutlet UIView *_targetView;
     
     NSArray *_colors;
+    
+    __weak IBOutlet UIView *_targetView;
+    __weak IBOutlet UIView *_panView;
+    UIPanGestureRecognizer *_targetViewPanGestureRecognizer;
 }
 @end
 
@@ -59,6 +62,70 @@
     
     // Useful in multiple scenarios: one common scenario being when the Notification Center drawer is pulled down
     [[NSNotificationCenter defaultCenter] addObserver:self selector:@selector(handleApplicationWillResignActive:) name: UIApplicationWillResignActiveNotification object:nil];
+    
+    // 操作用ターゲットを追加
+    _targetViewPanGestureRecognizer = [[UIPanGestureRecognizer alloc] initWithTarget:self action:@selector(firePan:)];
+    _targetViewPanGestureRecognizer.delegate = self;
+    [_targetView addGestureRecognizer:_targetViewPanGestureRecognizer];
+}
+
+- (void) firePan:(UIPanGestureRecognizer *)gestureRecognizer
+{
+    NSLog(@"firePan: call");
+    
+    switch (gestureRecognizer.state) {
+        case UIGestureRecognizerStateBegan:
+        {
+            CGPoint location = [_targetViewPanGestureRecognizer locationInView:_targetView];
+            
+            for( UIView *subview in _targetView.subviews ){
+                if( CGRectContainsPoint(subview.frame, location) ){
+                    _panView = subview;
+                    break;
+                }
+            }
+        }
+            break;
+        default:
+            break;
+    }
+    
+    
+    CGPoint translation = [gestureRecognizer translationInView:_targetView];
+    
+    CGPoint center = CGPointMake(_panView.center.x + translation.x, _panView.center.y + translation.y);
+    
+    CGPoint oldCenter = _panView.center;
+    _panView.center = center;
+    [gestureRecognizer setTranslation:CGPointZero inView:self.view];
+    
+#define SAFETY_MARGINE_EDGE 25.0f
+    CGPoint points[] = {
+                         CGPointMake(CGRectGetMinX(_panView.frame) + SAFETY_MARGINE_EDGE,CGRectGetMinY(_panView.frame) + SAFETY_MARGINE_EDGE)
+                        ,CGPointMake(CGRectGetMaxX(_panView.frame) - SAFETY_MARGINE_EDGE,CGRectGetMinY(_panView.frame) + SAFETY_MARGINE_EDGE)
+                        ,CGPointMake(CGRectGetMaxX(_panView.frame) - SAFETY_MARGINE_EDGE,CGRectGetMaxY(_panView.frame) - SAFETY_MARGINE_EDGE)
+                        ,CGPointMake(CGRectGetMinX(_panView.frame) + SAFETY_MARGINE_EDGE,CGRectGetMaxY(_panView.frame) - SAFETY_MARGINE_EDGE)
+                        };
+    
+    CGRect hitTestRect = (CGRect){ CGPointZero , _targetView.frame.size};
+    if( CGRectContainsPoint(hitTestRect, points[0]) != YES && CGRectContainsPoint(hitTestRect, points[01]) != YES && CGRectContainsPoint(hitTestRect, points[2]) != YES && CGRectContainsPoint(hitTestRect, points[3]) != YES){
+        
+        _panView.center = oldCenter;
+        _targetViewPanGestureRecognizer.enabled = NO;
+        _targetViewPanGestureRecognizer.enabled = YES;
+    }
+    
+    switch (gestureRecognizer.state) {
+        case UIGestureRecognizerStateEnded:
+        case UIGestureRecognizerStateCancelled:
+        case UIGestureRecognizerStateFailed:
+        {
+            _panView = nil;
+        }
+            break;
+        default:
+            break;
+    }
 }
 
 #pragma mark - Notifications
@@ -112,6 +179,7 @@
                     
                     [UIView animateWithDuration:0.1 delay:0.0 options:UIViewAnimationOptionBeginFromCurrentState
                                      animations:^{
+                                         appendView.alpha = 1.0f;
                                          appendView.transform = CGAffineTransformIdentity;
                                      }
                                      completion:^(BOOL finished) {
@@ -120,7 +188,7 @@
                 }else{
                     [UIView animateWithDuration:0.25 delay:0.0 options:UIViewAnimationOptionBeginFromCurrentState
                          animations:^{
-                             _currentView.alpha = .01;
+                             _currentView.alpha = .0f;
                          }
                      completion:^(BOOL finished) {
                          [_currentView removeFromSuperview];
@@ -150,6 +218,18 @@
     if ([_panGestureRecognizer isEqual:gestureRecognizer]) {
         return (_selectedItemIndexPath != nil);
     }
+    
+    if( [_targetViewPanGestureRecognizer isEqual:gestureRecognizer] ){
+        CGPoint location = [_targetViewPanGestureRecognizer locationInView:_targetView];
+        
+        for( UIView *subview in _targetView.subviews ){
+            if( CGRectContainsPoint(subview.frame, location) ){
+                return YES;
+            }
+        }
+        return NO;
+    }
+    
     return YES;
 }
 
@@ -190,5 +270,23 @@
     
     return cell;
 }
+
+- (void) collectionView:(UICollectionView *)collectionView didSelectItemAtIndexPath:(NSIndexPath *)indexPath
+{
+    NSLog(@"collectionView: didSelectItemAtIndexPath: call");
+    
+    UICollectionViewCell *cell = [collectionView cellForItemAtIndexPath:indexPath];
+    UIView *itemView = [cell viewWithTag:100];
+    
+    CGRect frame = [self.view convertRect:itemView.frame fromView:cell];
+    UIView* appendView = [[UIView alloc] initWithFrame:frame];
+    appendView.backgroundColor = itemView.backgroundColor;
+    appendView.center = CGPointMake(_targetView.frame.size.width * .5f, _targetView.frame.size.height * .5f);
+    
+    [_targetView addSubview:appendView];
+    
+    
+}
+
 
 @end
