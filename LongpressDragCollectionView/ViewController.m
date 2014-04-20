@@ -48,7 +48,10 @@
     
     _colors = @[ [UIColor redColor],[UIColor blueColor],[UIColor greenColor],[UIColor yellowColor]
                 ,[UIColor cyanColor],[UIColor magentaColor],[UIColor brownColor]
-                 ,[UIColor purpleColor]
+                ,[UIColor purpleColor]
+                , [UIColor redColor],[UIColor blueColor],[UIColor greenColor],[UIColor yellowColor]
+                ,[UIColor cyanColor],[UIColor magentaColor],[UIColor brownColor]
+                ,[UIColor purpleColor]
                 ];
     
     
